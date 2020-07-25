@@ -13,7 +13,7 @@ CONSUL_SERVER_FILES = $(CONSUL_SERVER) $(CDNS_FILES) components/consul/base.hcl 
 CONSUL_CLIENT = $(CDNS) components/consul/consul.yml
 CONSUL_CLIENT_FILES = $(CONSUL_CLIENT) $(CDNS_FILES) components/consul/base.hcl
 
-DHCP_SERVER = components/kernel.yml components/syctl.yml components/dhcpd/dhcpd.yml
+DHCP_SERVER = components/kernel.yml components/sysctl.yml components/dhcpd/dhcpd.yml
 DHCP_SERVER_FILES = $(DHCP_SERVER) components/dhcpd/dnsmasq.conf
 
 VAULT_SERVER = $(BASE) $(PERSIST) components/vault/vault.yml
@@ -60,6 +60,9 @@ DEDUP = | tr ' ' '\n' | awk '!x[$$0]++' | tr '\n' ' '
 AWS_BUCKET ?= linuxkit-import
 AWS_AMI_NAME ?= resinstack
 
+nomad_image:
+	cd pkg/nomad && docker build . -t nomad:0.11.0
+
 img:
 	mkdir -p img/
 
@@ -73,7 +76,7 @@ img/dhcpd.qcow2: img $(DHCP_SERVER_FILES)
 img/vault.qcow2: img $(VAULT_SERVER_FILES) $(CONSUL_CLIENT_FILES)
 	linuxkit build -format qcow2-bios -name vault -dir img/ $(shell echo $(VAULT_SERVER) $(CONSUL_CLIENT) $(DEDUP))
 
-img/nomad.qcow2: img $(NOMAD_SERVER_FILES) $(CONSUL_CLIENT_FILES)
+img/nomad.qcow2: img $(NOMAD_SERVER_FILES) $(CONSUL_CLIENT_FILES) nomad_image
 	linuxkit build -format qcow2-bios -name nomad -dir img/ $(shell echo $(NOMAD_SERVER) $(CONSUL_CLIENT) $(DEDUP))
 
 img/nomad-client.qcow2: img $(NOMAD_CLIENT_FILES) $(CONSUL_CLIENT_FILES)
@@ -102,4 +105,4 @@ local-img: img/consul.qcow2 img/dhcpd.qcow2 img/nomad.qcow2 img/nomad-client.qco
 clean:
 	rm -rf img/ aws/ linuxkit/
 
-.PHONY: clean aws/awio-push
+.PHONY: clean aws/awio-push nomad_image
